@@ -6,6 +6,7 @@ import { analyzeDocument } from '../../lib/analyzeDocuments';
 interface AnalysisResult {
   documentId: string;
   jsonId: string;
+  jsonUrl?: string;
   status: 'pending' | 'completed' | 'error';
   error?: string;
 }
@@ -35,10 +36,10 @@ export default function AnalyzePage() {
 
       for (const id of ids) {
         try {
-          const { jsonId } = await analyzeDocument(id);
+          const { jsonId, jsonUrl } = await analyzeDocument(id);
           setResults(prev => prev.map(r => 
             r.documentId === id 
-              ? { ...r, jsonId, status: 'completed' as const }
+              ? { ...r, jsonId, jsonUrl, status: 'completed' as const }
               : r
           ));
         } catch (error: any) {
@@ -91,9 +92,23 @@ export default function AnalyzePage() {
                             Document ID: {result.documentId}
                           </p>
                           {result.status === 'completed' && (
-                            <p className="text-xs text-gray-500">
-                              JSON ID: {result.jsonId}
-                            </p>
+                            <>
+                              <p className="text-xs text-gray-500">
+                                JSON ID: {result.jsonId}
+                              </p>
+                              {result.jsonUrl && (
+                                <p className="text-xs text-gray-500">
+                                  <a 
+                                    href={result.jsonUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-indigo-600 hover:text-indigo-500"
+                                  >
+                                    View JSON
+                                  </a>
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                         <span
