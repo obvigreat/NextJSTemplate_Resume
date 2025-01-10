@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { 
   ArrowUpTrayIcon, 
   DocumentTextIcon, 
@@ -32,6 +33,7 @@ const FILE_TYPE_NAMES: {[key: string]: string} = {
 };
 
 export default function NewDeal() {
+  const router = useRouter();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,6 +102,18 @@ export default function NewDeal() {
     setFiles(prev => prev.filter(f => f.name !== fileName));
   };
 
+  const handleAnalyze = () => {
+    const documentIds = files.map(f => f.id).filter(Boolean);
+    if (documentIds.length === 0) {
+      setError('No files to analyze');
+      return;
+    }
+    router.push({
+      pathname: '/deals/analyze',
+      query: { documentIds: documentIds.join(',') }
+    });
+  };
+
   return (
     <DealsLayout>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -149,7 +163,15 @@ export default function NewDeal() {
 
             {files.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-lg font-medium text-gray-900">Uploaded Documents</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">Uploaded Documents</h3>
+                  <button
+                    onClick={handleAnalyze}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    Analyze Documents
+                  </button>
+                </div>
                 <ul className="mt-3 divide-y divide-gray-200">
                   {files.map((file, index) => (
                     <li key={index} className="py-4">

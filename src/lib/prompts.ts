@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
  * We generate a JSON structure for each type of financial or franchise-related document.
  */
 export const DOCUMENT_PROMPTS = {
-  INCOME_STATEMENT: `You are a M&A analyst. You are analyzing an Income Statement. Extract the financial data and return it in this exact format:
+  INCOME_STATEMENT: `You are a M&A analyst. You are analyzing an Income Statement. Extract the financial data and return it in this exact format as the template below. Do not include any additional fields or text outside of the template. The template values should used as placeholders and replaced with the actual data:
   {
     "companies": [
       {
@@ -58,7 +58,7 @@ export const DOCUMENT_PROMPTS = {
     ]
   }`,
 
-  BALANCE_SHEET: `You are a M&A analyst. You are analyzing a Balance Sheet. Extract the financial data and return it in this exact format:
+  BALANCE_SHEET: `You are a M&A analyst. You are analyzing a Balance Sheet. Extract the financial data and return it in this exact format as the template below. Do not include any additional fields or text outside of the template. The template values should used as placeholders and replaced with the actual data:
   {
     "companies": [
       {
@@ -124,7 +124,7 @@ export const DOCUMENT_PROMPTS = {
     ]
   }`,
 
-  CASH_FLOW: `You are a M&A analyst. You are analyzing a Cash Flow Statement. Extract the financial data and return it in this exact format:
+  CASH_FLOW: `You are a M&A analyst. You are analyzing a Cash Flow Statement. Extract the financial data and return it in this exact format as the template below. Do not include any additional fields or text outside of the template. The template values should used as placeholders and replaced with the actual data:
   {
     "companies": [
       {
@@ -181,7 +181,7 @@ export const DOCUMENT_PROMPTS = {
     ]
   }`,
 
-  FINANCIAL_RATIOS: `You are a M&A analyst. You are analyzing Financial Ratios. Extract the financial data and return it in this exact format:
+  FINANCIAL_RATIOS: `You are a M&A analyst. You are analyzing Financial Ratios. Extract the financial data and return it in this exact format as the template below. Do not include any additional fields or text outside of the template. The template values should used as placeholders and replaced with the actual data: 
   {
     "companies": [
       {
@@ -243,7 +243,7 @@ export const DOCUMENT_PROMPTS = {
   /**
    *  NEW ADDITION #1: FRANCHISE DISCLOSURE DOCUMENT (FDD)
    */
-  FDD: `You are a M&A analyst. You are analyzing a Franchise Disclosure Document (FDD). Extract the relevant franchise data and return it in this exact format:
+  FDD: `You are a M&A analyst. You are analyzing a Franchise Disclosure Document (FDD). Extract the financial data and return it in this exact format as the template below. Do not include any additional fields or text outside of the template. The template values should used as placeholders and replaced with the actual data:
   {
     "companies": [
       {
@@ -317,7 +317,7 @@ export const DOCUMENT_PROMPTS = {
   /**
    *  NEW ADDITION #2: STATEMENT OF SHAREHOLDERS' EQUITY
    */
-  STATEMENT_OF_SHAREHOLDERS_EQUITY: `You are a M&A analyst. You are analyzing a Statement of Shareholders' Equity. Extract the relevant data and return it in this exact format:
+  STATEMENT_OF_SHAREHOLDERS_EQUITY: `You are a M&A analyst. You are analyzing a Statement of Shareholders' Equity. Extract the financial data and return it in this exact format as the template below. Do not include any additional fields or text outside of the template. The template values should used as placeholders and replaced with the actual data:
   {
     "companies": [
       {

@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../../lib/supabaseClient';
 import { openai } from '../../lib/openAIClient';
 import { FinancialData } from '../../lib/types';
-import { detectDocumentType } from '../../lib/detectDocumentType';
+import { detectDocumentType } from '../../lib/detectDocumentType-copy';
 import { getPromptForDocumentType } from '../../lib/buildPrompt';
 import { extractJsonFromOpenAI } from '../../lib/extractJsonFromOpenAI';
 
