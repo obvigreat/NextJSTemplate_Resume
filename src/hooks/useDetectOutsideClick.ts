@@ -1,21 +1,19 @@
-import {RefObject, useEffect} from 'react';
+import {RefObject, useEffect, useState} from 'react';
 
-const useDetectOutsideClick = <T extends HTMLElement>(ref: RefObject<T>, handler: (event: Event) => void) => {
+export default function useDetectOutsideClick(ref: RefObject<HTMLElement>, onOutsideClick: () => void) {
+  const [isActive, setIsActive] = useState(false);
+
   useEffect(() => {
-    const listener = (event: Event) => {
-      // Do nothing if clicking ref's element or descendent elements
-      if (!ref.current || ref.current.contains((event?.target as Node) || null)) {
-        return;
+    function handleClick(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        onOutsideClick();
+        setIsActive(false);
       }
-      handler(event);
-    };
-    document.addEventListener('mousedown', listener);
-    document.addEventListener('touchstart', listener);
-    return () => {
-      document.removeEventListener('mousedown', listener);
-      document.removeEventListener('touchstart', listener);
-    };
-  }, [ref, handler]);
-};
+    }
 
-export default useDetectOutsideClick;
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [ref, onOutsideClick]);
+
+  return [isActive, setIsActive] as const;
+} 

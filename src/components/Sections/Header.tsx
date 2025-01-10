@@ -1,5 +1,5 @@
 import {Dialog, Transition} from '@headlessui/react';
-import {Bars3BottomRightIcon} from '@heroicons/react/24/outline';
+import {Bars3Icon, XMarkIcon} from '@heroicons/react/24/outline';
 import classNames from 'classnames';
 import Link from 'next/link';
 import {FC, Fragment, memo, useCallback, useMemo, useState} from 'react';
@@ -7,86 +7,75 @@ import {FC, Fragment, memo, useCallback, useMemo, useState} from 'react';
 import {SectionId} from '../../data/data';
 import {useNavObserver} from '../../hooks/useNavObserver';
 
-export const headerID = 'headerNav';
+export const headerID = 'header';
 
 const Header: FC = memo(() => {
-  const [currentSection, setCurrentSection] = useState<SectionId | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
   const navSections = useMemo(
     () => [SectionId.About, SectionId.Resume, SectionId.Portfolio, SectionId.Testimonials, SectionId.Contact],
     [],
   );
 
-  const intersectionHandler = useCallback((section: SectionId | null) => {
-    section && setCurrentSection(section);
-  }, []);
+  const activeSection = useNavObserver(
+    navSections.map(section => `#${section}`),
+  );
 
-  useNavObserver(navSections.map(section => `#${section}`).join(','), intersectionHandler);
+  const toggleOpen = useCallback(() => {
+    setIsOpen(!isOpen);
+  }, [isOpen]);
+
+  const baseClass = classNames(
+    'fixed top-0 z-50 w-full bg-white bg-opacity-90 px-4 sm:px-6 lg:px-8',
+  );
 
   return (
-    <>
-      <MobileNav currentSection={currentSection} navSections={navSections} />
-      <DesktopNav currentSection={currentSection} navSections={navSections} />
-    </>
-  );
-});
-
-const DesktopNav: FC<{navSections: SectionId[]; currentSection: SectionId | null}> = memo(
-  ({navSections, currentSection}) => {
-    const baseClass =
-      '-m-1.5 p-1.5 rounded-md font-bold first-letter:uppercase hover:transition-colors hover:duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 sm:hover:text-orange-500 text-neutral-100';
-    const activeClass = classNames(baseClass, 'text-orange-500');
-    const inactiveClass = classNames(baseClass, 'text-neutral-100');
-    return (
-      <header className="fixed top-0 z-50 hidden w-full bg-neutral-900/50 p-4 backdrop-blur sm:block" id={headerID}>
-        <nav className="flex justify-center gap-x-8">
-          {navSections.map(section => (
-            <NavItem
-              activeClass={activeClass}
-              current={section === currentSection}
-              inactiveClass={inactiveClass}
-              key={section}
-              section={section}
-            />
-          ))}
+    <header className={baseClass} id={headerID}>
+      <div className="mx-auto flex max-w-7xl items-center justify-between py-4">
+        <Link className="text-2xl font-bold text-gray-900" href="/">
+          M&A Marketplace
+        </Link>
+        <nav className="hidden sm:block">
+          <ul className="flex space-x-8">
+            {navSections.map(section => (
+              <li key={section}>
+                <Link
+                  className={classNames(
+                    'hover:text-gray-900',
+                    activeSection === section ? 'text-gray-900' : 'text-gray-500',
+                  )}
+                  href={`#${section}`}
+                >
+                  {section}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
-      </header>
-    );
-  },
-);
-
-const MobileNav: FC<{navSections: SectionId[]; currentSection: SectionId | null}> = memo(
-  ({navSections, currentSection}) => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
-
-    const toggleOpen = useCallback(() => {
-      setIsOpen(!isOpen);
-    }, [isOpen]);
-
-    const baseClass =
-      'p-2 rounded-md first-letter:uppercase transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500';
-    const activeClass = classNames(baseClass, 'bg-neutral-900 text-white font-bold');
-    const inactiveClass = classNames(baseClass, 'text-neutral-200 font-medium');
-    return (
-      <>
         <button
-          aria-label="Menu Button"
-          className="fixed right-2 top-2 z-40 rounded-md bg-orange-500 p-2 ring-offset-gray-800/60 hover:bg-orange-400 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 sm:hidden"
-          onClick={toggleOpen}>
-          <Bars3BottomRightIcon className="h-8 w-8 text-white" />
-          <span className="sr-only">Open sidebar</span>
+          className="block rounded-lg p-2.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900 sm:hidden"
+          onClick={toggleOpen}
+        >
+          <span className="sr-only">Open main menu</span>
+          <Bars3Icon aria-hidden="true" className="h-6 w-6" />
         </button>
-        <Transition.Root as={Fragment} show={isOpen}>
-          <Dialog as="div" className="fixed inset-0 z-40 flex sm:hidden" onClose={toggleOpen}>
-            <Transition.Child
-              as={Fragment}
-              enter="transition-opacity ease-linear duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="transition-opacity ease-linear duration-300"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0">
-              <Dialog.Overlay className="fixed inset-0 bg-stone-900 bg-opacity-75" />
-            </Transition.Child>
+      </div>
+
+      <Transition.Root as={Fragment} show={isOpen}>
+        <Dialog as="div" className="fixed inset-0 z-40 sm:hidden" onClose={setIsOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="transition-opacity ease-linear duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="transition-opacity ease-linear duration-300"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-25" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 z-40 flex">
             <Transition.Child
               as={Fragment}
               enter="transition ease-in-out duration-300 transform"
@@ -94,44 +83,47 @@ const MobileNav: FC<{navSections: SectionId[]; currentSection: SectionId | null}
               enterTo="translate-x-0"
               leave="transition ease-in-out duration-300 transform"
               leaveFrom="translate-x-0"
-              leaveTo="-translate-x-full">
-              <div className="relative w-4/5 bg-stone-800">
-                <nav className="mt-5 flex flex-col gap-y-2 px-2">
-                  {navSections.map(section => (
-                    <NavItem
-                      activeClass={activeClass}
-                      current={section === currentSection}
-                      inactiveClass={inactiveClass}
-                      key={section}
-                      onClick={toggleOpen}
-                      section={section}
-                    />
-                  ))}
-                </nav>
-              </div>
+              leaveTo="-translate-x-full"
+            >
+              <Dialog.Panel className="relative flex w-full max-w-xs flex-1 flex-col bg-white pb-4 pt-5">
+                <div className="absolute right-0 top-0 -mr-12 pt-2">
+                  <button
+                    className="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+                    onClick={toggleOpen}
+                  >
+                    <span className="sr-only">Close sidebar</span>
+                    <XMarkIcon aria-hidden="true" className="h-6 w-6 text-white" />
+                  </button>
+                </div>
+                <div className="flex flex-shrink-0 items-center px-4">
+                  <Link className="text-2xl font-bold text-gray-900" href="/">
+                    M&A Marketplace
+                  </Link>
+                </div>
+                <div className="mt-5 h-0 flex-1 overflow-y-auto px-2">
+                  <nav className="space-y-1">
+                    {navSections.map(section => (
+                      <Link
+                        key={section}
+                        className={classNames(
+                          'block rounded-md px-3 py-2 text-base font-medium hover:bg-gray-50 hover:text-gray-900',
+                          activeSection === section ? 'bg-gray-50 text-gray-900' : 'text-gray-600',
+                        )}
+                        href={`#${section}`}
+                        onClick={toggleOpen}
+                      >
+                        {section}
+                      </Link>
+                    ))}
+                  </nav>
+                </div>
+              </Dialog.Panel>
             </Transition.Child>
-          </Dialog>
-        </Transition.Root>
-      </>
-    );
-  },
-);
-
-const NavItem: FC<{
-  section: string;
-  current: boolean;
-  activeClass: string;
-  inactiveClass: string;
-  onClick?: () => void;
-}> = memo(({section, current, inactiveClass, activeClass, onClick}) => {
-  return (
-    <Link
-      className={classNames(current ? activeClass : inactiveClass)}
-      href={`/#${section}`}
-      key={section}
-      onClick={onClick}>
-      {section}
-    </Link>
+            <div className="w-14 flex-shrink-0" aria-hidden="true" />
+          </div>
+        </Dialog>
+      </Transition.Root>
+    </header>
   );
 });
 
