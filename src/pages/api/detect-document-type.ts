@@ -5,13 +5,20 @@ import { DOCUMENT_PROMPTS } from '../../lib/prompts';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const DETECTION_PROMPT = `You are a financial document classifier. Analyze the given document content and determine its type.
-Return ONLY ONE of these exact types: INCOME_STATEMENT, BALANCE_SHEET, CASH_FLOW, FDD, STATEMENT_OF_SHAREHOLDERS_EQUITY
+Return ONLY ONE of these exact types: INCOME_STATEMENT, BALANCE_SHEET, CASH_FLOW_STATEMENT, FDD, STATEMENT_OF_SHAREHOLDERS_EQUITY
+
+Context about the document:
+Filename: {filename}
+File Type: {fileType}
 
 Rules:
 1. Return ONLY the type, no explanation
 2. Be case sensitive
 3. If unsure, default to INCOME_STATEMENT
 4. NO additional text or formatting
+5. For PDFs, focus on title and first paragraph
+6. For XLSX/CSV, focus on column headers
+7. Consider both content and filename
 
 Document content to analyze:`;
 
@@ -24,26 +31,31 @@ export default async function handler(
   }
 
   try {
-    const { content } = req.body;
+    const { content, filename, fileType } = req.body;
 
     if (!content) {
       return res.status(400).json({ error: 'Missing content' });
     }
+
+    // Prepare prompt with file information
+    const prompt = DETECTION_PROMPT
+      .replace('{filename}', filename || 'unknown')
+      .replace('{fileType}', fileType || 'unknown');
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: DETECTION_PROMPT
+          content: prompt
         },
         {
           role: "user",
-          content
+          content: content.slice(0, 5000) // Limit content length for efficiency
         }
       ],
       temperature: 0.1,
-      max_tokens: 50
+      max_tokens: 5000
     });
 
     const documentType = completion.choices[0].message.content?.trim() as keyof typeof DOCUMENT_PROMPTS;

@@ -1,0 +1,8 @@
+﻿"column_name","data_type","is_nullable","column_default"
+"id","uuid","NO","gen_random_uuid()"
+"company_id","uuid","YES",""
+"company_name","text","YES",""
+"ticker_symbol","text","YES",""
+"industry","text","YES",""
+"country","text","YES",""
+"document_id","uuid","YES",""

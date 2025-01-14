@@ -438,70 +438,243 @@ function detectDocumentTypeByKeywords(
   
   // For each doc type, count how many keywords appear in the content
   const matches = Object.entries(KEYWORDS).map(([type, words]) => {
-    const count = words.filter((w) => contentLower.includes(w)).length;
-    return { type, count };
+    // Count exact matches and partial matches separately
+    const exactMatches = words
+      .map(w => w.toLowerCase())
+      .filter(w => contentLower.includes(w)).length;
+      
+    const partialMatches = words
+      .map(w => w.toLowerCase())
+      .filter(w => {
+        // Check for word parts (more lenient matching)
+        const parts = w.split(/[\s-(),/]+/);
+        return parts.some(part => part.length > 3 && contentLower.includes(part));
+      }).length;
+      
+    const totalScore = exactMatches + (partialMatches * 0.5); // Weight partial matches less
+    
+    return {
+      type,
+      exactMatches,
+      partialMatches,
+      totalScore,
+      matchRatio: totalScore / words.length
+    };
   });
 
-  // Sort by highest count
-  const best = matches.sort((a, b) => b.count - a.count)[0];
+  // Log match information for debugging
+  console.log('Document type matches:', matches.map(m => ({
+    type: m.type,
+    exactMatches: m.exactMatches,
+    partialMatches: m.partialMatches,
+    totalScore: m.totalScore
+  })));
 
-  // If we found a doc type with at least one keyword match, use it
-  if (best && best.count > 0 && best.type in DOCUMENT_PROMPTS) {
+  // Sort by total score and match ratio
+  const best = matches.sort((a, b) => {
+    if (Math.abs(b.totalScore - a.totalScore) > 3) {
+      return b.totalScore - a.totalScore;
+    }
+    return b.matchRatio - a.matchRatio;
+  })[0];
+
+  // More lenient threshold - require either:
+  // - 2 exact matches
+  // - 1 exact match and 2 partial matches
+  // - 4 partial matches
+  if (best && (
+    best.exactMatches >= 2 ||
+    (best.exactMatches >= 1 && best.partialMatches >= 2) ||
+    best.partialMatches >= 4
+  )) {
+    console.log('Selected document type:', best.type, 'with scores:', {
+      exactMatches: best.exactMatches,
+      partialMatches: best.partialMatches,
+      totalScore: best.totalScore
+    });
     return best.type as keyof typeof DOCUMENT_PROMPTS;
   }
 
+  // If we can't determine type, default to INCOME_STATEMENT with a warning
+  console.warn('Could not confidently determine document type, defaulting to INCOME_STATEMENT');
   return 'INCOME_STATEMENT';
 }
 
 /**
- * Combined document type detection using both OpenAI and keyword validation
+ * Detect document type from filename
+ */
+function detectDocumentTypeFromFilename(filename: string): keyof typeof DOCUMENT_PROMPTS | null {
+  const lowerFilename = filename.toLowerCase();
+  
+  // Common document type indicators in filenames
+  const typeIndicators = {
+    'income_statement': 'INCOME_STATEMENT',
+    'income statement': 'INCOME_STATEMENT',
+    'profit_and_loss': 'INCOME_STATEMENT',
+    'profit and loss': 'INCOME_STATEMENT',
+    'p&l': 'INCOME_STATEMENT',
+    'balance_sheet': 'BALANCE_SHEET',
+    'balance sheet': 'BALANCE_SHEET',
+    'cash_flow': 'CASH_FLOW_STATEMENT',
+    'cash flow': 'CASH_FLOW_STATEMENT',
+    'cashflow': 'CASH_FLOW_STATEMENT',
+    'shareholders_equity': 'STATEMENT_OF_SHAREHOLDERS_EQUITY',
+    'shareholders equity': 'STATEMENT_OF_SHAREHOLDERS_EQUITY',
+    'stockholders_equity': 'STATEMENT_OF_SHAREHOLDERS_EQUITY',
+    'stockholders equity': 'STATEMENT_OF_SHAREHOLDERS_EQUITY',
+    'financial_ratios': 'FINANCIAL_RATIOS',
+    'financial ratios': 'FINANCIAL_RATIOS',
+    'fdd': 'FDD',
+    'franchise_disclosure': 'FDD'
+  } as const;
+
+  for (const [indicator, type] of Object.entries(typeIndicators)) {
+    if (lowerFilename.includes(indicator)) {
+      return type as keyof typeof DOCUMENT_PROMPTS;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Detect document type from structured data (CSV/XLSX)
+ */
+function detectDocumentTypeFromStructuredData(headers: string[]): keyof typeof DOCUMENT_PROMPTS | null {
+  const headerStr = headers.join(' ').toLowerCase();
+  
+  // Key column combinations that strongly indicate document types
+  const typeIndicators = {
+    INCOME_STATEMENT: [
+      ['revenue', 'cost of goods sold', 'gross profit'],
+      ['revenue', 'expenses', 'net income'],
+      ['sales', 'cost of sales', 'gross profit']
+    ],
+    BALANCE_SHEET: [
+      ['assets', 'liabilities', 'equity'],
+      ['current assets', 'non-current assets', 'liabilities'],
+      ['assets', 'liabilities', "shareholder's equity"]
+    ],
+    CASH_FLOW_STATEMENT: [
+      ['operating activities', 'investing activities', 'financing activities'],
+      ['cash flow from operations', 'cash flow from investing', 'cash flow from financing'],
+      ['operating cash flow', 'investing cash flow', 'financing cash flow']
+    ],
+    STATEMENT_OF_SHAREHOLDERS_EQUITY: [
+      ['common stock', 'retained earnings', 'treasury stock'],
+      ['share capital', 'retained earnings', 'reserves'],
+      ["stockholder's equity", 'accumulated earnings', 'other comprehensive income']
+    ],
+    FINANCIAL_RATIOS: [
+      ['ratio', 'value', 'description'],
+      ['financial ratio', 'calculation', 'result'],
+      ['metric', 'value', 'benchmark']
+    ]
+  } as const;
+
+  for (const [type, combinations] of Object.entries(typeIndicators)) {
+    if (combinations.some(combo => combo.every(term => headerStr.includes(term)))) {
+      return type as keyof typeof DOCUMENT_PROMPTS;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Combined document type detection using filename, content structure, and keywords
  */
 export async function detectDocumentType(
-  content: string
+  content: string,
+  filename?: string,
+  fileType?: string
 ): Promise<keyof typeof DOCUMENT_PROMPTS> {
   try {
-    // First, get OpenAI's prediction
-    const response = await fetch('/api/detect-document-type', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content })
-    });
-
-    if (!response.ok) {
-      console.error('Error with OpenAI detection, falling back to keyword detection');
-      return detectDocumentTypeByKeywords(content);
+    // First try filename-based detection if filename is provided
+    if (filename) {
+      const filenameType = detectDocumentTypeFromFilename(filename);
+      if (filenameType) {
+        console.log('Document type detected from filename:', filenameType);
+        return filenameType;
+      }
     }
 
-    const { documentType: aiType } = await response.json();
-    
-    // Then, get keyword-based prediction
-    const keywordType = detectDocumentTypeByKeywords(content);
-
-    // If both methods agree, we're very confident
-    if (aiType === keywordType) {
-      return aiType;
+    // For structured data files (CSV/XLSX), try header-based detection
+    if (fileType === 'csv' || fileType === 'xlsx' || fileType === 'xls') {
+      // Split content into lines and get headers
+      const lines = content.split('\n');
+      if (lines.length > 0) {
+        const headers = lines[0].split(',').map(h => h.trim());
+        const structuredType = detectDocumentTypeFromStructuredData(headers);
+        if (structuredType) {
+          console.log('Document type detected from structured data:', structuredType);
+          return structuredType;
+        }
+      }
     }
 
-    // If they disagree, check keyword confidence
-    const keywordConfidence = Object.prototype.hasOwnProperty.call(KEYWORDS, keywordType)
-      ? KEYWORDS[keywordType].filter((word: string) => content.toLowerCase().includes(word)).length
-      : 0;
+    // For PDFs, try to detect based on first page content
+    if (fileType === 'pdf') {
+      // Get first 1000 characters for quick analysis
+      const firstPageContent = content.slice(0, 1000);
+      
+      // Check for common PDF header patterns
+      const pdfPatterns = {
+        INCOME_STATEMENT: [
+          /income statement/i,
+          /profit (?:and|&) loss/i,
+          /statement of (?:income|earnings)/i
+        ],
+        BALANCE_SHEET: [
+          /balance sheet/i,
+          /statement of (?:financial position|assets and liabilities)/i
+        ],
+        CASH_FLOW_STATEMENT: [
+          /cash flow/i,
+          /statement of cash flows/i,
+          /cash flow statement/i
+        ],
+        FDD: [
+          /franchise disclosure document/i,
+          /fdd\s+item/i,
+          /franchise disclosure/i
+        ]
+      };
 
-    // If we have high keyword confidence (3+ matches), trust keywords over AI
-    if (keywordConfidence >= 3) {
-      console.log('High keyword confidence, using keyword-based type:', keywordType);
-      return keywordType;
+      for (const [type, patterns] of Object.entries(pdfPatterns)) {
+        if (patterns.some(pattern => pattern.test(firstPageContent))) {
+          console.log('Document type detected from PDF patterns:', type);
+          return type as keyof typeof DOCUMENT_PROMPTS;
+        }
+      }
     }
 
-    // Otherwise, trust OpenAI's prediction
-    console.log('Using OpenAI prediction:', aiType);
-    return aiType;
+    // Try OpenAI detection
+    try {
+      const response = await fetch('/api/detect-document-type', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          content,
+          filename,
+          fileType 
+        })
+      });
+
+      if (response.ok) {
+        const { documentType: aiType } = await response.json();
+        console.log('Document type detected by OpenAI:', aiType);
+        return aiType;
+      }
+    } catch (error) {
+      console.error('OpenAI detection failed:', error);
+    }
+
+    // Fall back to keyword detection
+    return detectDocumentTypeByKeywords(content);
 
   } catch (error) {
     console.error('Error in document type detection:', error);
-    // Fall back to keyword detection if API call fails
     return detectDocumentTypeByKeywords(content);
   }
 }

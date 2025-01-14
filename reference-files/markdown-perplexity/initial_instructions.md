@@ -253,7 +253,7 @@ serve(async (req) => {
 
     // Call GPT-4 API
     const completion = await openai.createChatCompletion({
-      model: "o1",
+      model: "gpt-4o-2024-11-20",
       messages: [
         { role: "system", content: "You are a financial document analyzer." },
         { role: "user", content: prompt }
